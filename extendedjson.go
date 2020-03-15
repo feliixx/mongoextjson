@@ -128,14 +128,16 @@ func init() {
 	jsonExt.EncodeType(int32(0), jencNumberInt)
 	jsonExtendedExt.EncodeType(int32(0), jencExtendedNumberInt)
 
+	funcExt.DecodeFunc("NumberDecimal", "$numberDecimalFunc", "N")
+	jsonExt.DecodeKeyed("$numberDecimal", jdecNumberDecimal)
+	jsonExt.DecodeKeyed("$numberDecimalFunc", jdecNumberDecimal)
+	jsonExt.EncodeType(primitive.NewDecimal128(0, 0), jencNumberDecimal)
+	jsonExtendedExt.EncodeType(primitive.NewDecimal128(0, 0), jencExtendedNumberDecimal)
+
 	funcExt.DecodeConst("MinKey", primitive.MinKey{})
 	funcExt.DecodeConst("MaxKey", primitive.MaxKey{})
 	jsonExt.DecodeKeyed("$minKey", jdecMinKey)
 	jsonExt.DecodeKeyed("$maxKey", jdecMaxKey)
-
-	// TODO: order key ?
-	// jsonExt.EncodeType(primitive, jencMinMaxKey)
-	// jsonExtendedExt.EncodeType(primitive.orderKey{}, jencMinMaxKey)
 
 	jsonExt.DecodeKeyed("$undefined", jdecUndefined)
 	jsonExt.EncodeType(primitive.Undefined{}, jencUndefined)
@@ -444,6 +446,45 @@ func jencNumberInt(v interface{}) ([]byte, error) {
 func jencExtendedNumberInt(v interface{}) ([]byte, error) {
 	n := v.(int32)
 	return fbytes("NumberInt(%d)", n), nil
+}
+
+func jdecNumberDecimal(data []byte) (interface{}, error) {
+	var v struct {
+		N    string `json:"$numberDecimal,string"`
+		Func struct {
+			N string `json:",string"`
+		} `json:"$numberDecimalFunc"`
+	}
+	var vn struct {
+		N    string `json:"$numberDecimal"`
+		Func struct {
+			N string
+		} `json:"$numberDecimalFunc"`
+	}
+	err := jdec(data, &v)
+	if err != nil {
+		err = jdec(data, &vn)
+		v.N = vn.N
+		v.Func.N = vn.Func.N
+	}
+	if err != nil {
+		return nil, err
+	}
+	decimal128, err := primitive.ParseDecimal128(v.N)
+	if err != nil {
+		return primitive.ParseDecimal128(v.Func.N)
+	}
+	return decimal128, err
+}
+
+func jencNumberDecimal(v interface{}) ([]byte, error) {
+	n := v.(primitive.Decimal128)
+	return fbytes(`{"$numberDecimal":"%s"}`, n.String()), nil
+}
+
+func jencExtendedNumberDecimal(v interface{}) ([]byte, error) {
+	n := v.(primitive.Decimal128)
+	return fbytes(`NumberDecimal("%s")`, n.String()), nil
 }
 
 func jencInt(v interface{}) ([]byte, error) {
