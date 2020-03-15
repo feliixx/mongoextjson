@@ -5,15 +5,12 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mongodb-version: [3.6.15, 4.0.13, 4.2.3]
 
     steps:
     - name: Set up MongoDB
       uses: superchargejs/mongodb-github-action@1.1.0
       with:
-        mongodb-version: ${{ matrix.mongodb-version }}
+        mongodb-version: 4.2.3
 
     - name: Set up Go 1.14
       uses: actions/setup-go@v1
@@ -32,11 +29,6 @@ jobs:
 
     - name: Run test 
       run: ./test.sh 
-
-    - name: Full run
-      run: |
-        go build
-        ./mgodatagen -f datagen/testdata/big.json
     
     - name: Export coverage result 
       run: bash <(curl -s https://codecov.io/bash)
