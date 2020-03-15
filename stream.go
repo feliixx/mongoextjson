@@ -236,28 +236,6 @@ func (enc *Encoder) DisableHTMLEscaping() {
 	enc.escapeHTML = false
 }
 
-// // RawMessage is a raw encoded JSON value.
-// // It implements Marshaler and Unmarshaler and can
-// // be used to delay JSON decoding or precompute a JSON encoding.
-// type RawMessage []byte
-
-// // MarshalJSON returns *m as the JSON encoding of m.
-// func (m *RawMessage) MarshalJSON() ([]byte, error) {
-// 	return *m, nil
-// }
-
-// // UnmarshalJSON sets *m to a copy of data.
-// func (m *RawMessage) UnmarshalJSON(data []byte) error {
-// 	if m == nil {
-// 		return errors.New("json.RawMessage: UnmarshalJSON on nil pointer")
-// 	}
-// 	*m = append((*m)[0:0], data...)
-// 	return nil
-// }
-
-// var _ Marshaler = (*RawMessage)(nil)
-// var _ Unmarshaler = (*RawMessage)(nil)
-
 // A Token holds a value of one of these types:
 //
 //	Delim, for the four JSON delimiters [ ] { }
@@ -492,20 +470,3 @@ func (dec *Decoder) peek() (byte, error) {
 		err = dec.refill()
 	}
 }
-
-/*
-TODO
-
-// EncodeToken writes the given JSON token to the stream.
-// It returns an error if the delimiters [ ] { } are not properly used.
-//
-// EncodeToken does not call Flush, because usually it is part of
-// a larger operation such as Encode, and those will call Flush when finished.
-// Callers that create an Encoder and then invoke EncodeToken directly,
-// without using Encode, need to call Flush when finished to ensure that
-// the JSON is written to the underlying writer.
-func (e *Encoder) EncodeToken(t Token) error  {
-	...
-}
-
-*/
