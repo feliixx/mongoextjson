@@ -25,8 +25,10 @@ func Unmarshal(data []byte, value interface{}) error {
 	return d.Decode(value)
 }
 
-// MarshalCanonical marshals a JSON value that may hold non-standard
-// syntax as defined in BSON's extended JSON specification.
+// MarshalCanonical return the BSON extended JSON encoding of value.
+// The output is a valid JSON and will look like
+//
+// { "_id": {"$oid": "5a934e000102030405000000"}}
 func MarshalCanonical(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	e := NewEncoder(&buf)
@@ -38,8 +40,10 @@ func MarshalCanonical(value interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Marshal marshals a JSON value that may hold non-standard
-// syntax as defined in BSON's extended JSON specification.
+// Marshal return the BSON extended JSON encoding of value.
+// The output is not a valid JSON and will look like
+//
+// { "_id": ObjectId("5a934e000102030405000000")}
 func Marshal(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	e := NewEncoder(&buf)
