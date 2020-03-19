@@ -169,10 +169,6 @@ type Encoder struct {
 	err        error
 	escapeHTML bool
 
-	indentBuf    *bytes.Buffer
-	indentPrefix string
-	indentValue  string
-
 	ext Extension
 }
 
@@ -207,27 +203,11 @@ func (enc *Encoder) Encode(v interface{}) error {
 	// no need for this
 	//e.WriteByte('\n')
 
-	b := e.Bytes()
-	if enc.indentBuf != nil {
-		enc.indentBuf.Reset()
-		err = Indent(enc.indentBuf, b, enc.indentPrefix, enc.indentValue)
-		if err != nil {
-			return err
-		}
-		b = enc.indentBuf.Bytes()
-	}
-	if _, err = enc.w.Write(b); err != nil {
+	if _, err = enc.w.Write(e.Bytes()); err != nil {
 		enc.err = err
 	}
 	encodeStatePool.Put(e)
 	return err
-}
-
-// Indent sets the encoder to format each encoded value with Indent.
-func (enc *Encoder) Indent(prefix, indent string) {
-	enc.indentBuf = new(bytes.Buffer)
-	enc.indentPrefix = prefix
-	enc.indentValue = indent
 }
 
 // DisableHTMLEscaping causes the encoder not to escape angle brackets

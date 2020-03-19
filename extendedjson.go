@@ -59,15 +59,6 @@ var jsonExt Extension
 var funcExt Extension
 var jsonExtendedExt Extension
 
-// jdec is used internally by the JSON decoding functions
-// so they may unmarshal functions without getting into endless
-// recursion due to keyed objects.
-func jdec(data []byte, value interface{}) error {
-	d := NewDecoder(bytes.NewBuffer(data))
-	d.Extend(&funcExt)
-	return d.Decode(value)
-}
-
 // TODO
 // - Shell regular expressions ("/regexp/opts")
 
@@ -150,6 +141,15 @@ func fbytes(format string, args ...interface{}) []byte {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, format, args...)
 	return buf.Bytes()
+}
+
+// jdec is used internally by the JSON decoding functions
+// so they may unmarshal functions without getting into endless
+// recursion due to keyed objects.
+func jdec(data []byte, value interface{}) error {
+	d := NewDecoder(bytes.NewBuffer(data))
+	d.Extend(&funcExt)
+	return d.Decode(value)
 }
 
 func jdecBinary(data []byte) (interface{}, error) {
@@ -295,7 +295,6 @@ func jdecTimestamp(data []byte) (interface{}, error) {
 		return nil, err
 	}
 	return primitive.Timestamp{T: uint32(v.Func.T), I: uint32(v.Func.I)}, nil
-	//return MongoTimestamp(uint64(v.Func.T)<<32 | uint64(uint32(v.Func.I))), nil
 }
 
 func jencTimestamp(v interface{}) ([]byte, error) {
@@ -523,16 +522,6 @@ func jdecMaxKey(data []byte) (interface{}, error) {
 	}
 	return primitive.MaxKey{}, nil
 }
-
-// func jencMinMaxKey(v interface{}) ([]byte, error) {
-// 	switch v.(orderKey) {
-// 	case MinKey:
-// 		return []byte(`{"$minKey":1}`), nil
-// 	case MaxKey:
-// 		return []byte(`{"$maxKey":1}`), nil
-// 	}
-// 	panic(fmt.Sprintf("invalid $minKey/$maxKey value: %d", v))
-// }
 
 func jdecUndefined(data []byte) (interface{}, error) {
 	var v struct {
