@@ -75,6 +75,31 @@ func TestMarshalUnmarshal(t *testing.T) {
 			canonical: `{"$numberDecimal":"6.2458066851535814488338301193477E-6145"}`,
 		},
 		{
+			name:      "string",
+			value:     bson.M{"str": "hello"},
+			data:      `{"str":"hello"}`,
+			canonical: `{"str":"hello"}`,
+		},
+		{
+			name:      "single quoted string",
+			value:     bson.M{"str": "'hello'"},
+			data:      `{"str":"'hello'"}`,
+			canonical: `{"str":"'hello'"}`,
+		},
+		{
+			name:      "double quoted string",
+			value:     bson.M{"str": "\"hello\""},
+			data:      `{"str":"\"hello\""}`,
+			canonical: `{"str":"\"hello\""}`,
+		},
+		{
+			name: "string with line return",
+			value: bson.M{"str": `"he
+			llo"`},
+			data:      `{"str":"\"he\n\t\t\tllo\""}`,
+			canonical: `{"str":"\"he\n\t\t\tllo\""}`,
+		},
+		{
 			name:      "int64",
 			value:     int64(10),
 			data:      `10`,
