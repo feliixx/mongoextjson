@@ -22,6 +22,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		value         interface{}
 		data          string
 		canonical     string
+		skipMarshal   bool
 		skipUnmarshal bool
 	}{
 		{
@@ -139,36 +140,94 @@ func TestMarshalUnmarshal(t *testing.T) {
 			data:      `[{"k":"v1"},{"k":"v2"}]`,
 			canonical: `[{"k":"v1"},{"k":"v2"}]`,
 		},
+		{
+			name:          "min key",
+			value:         bson.M{"k": primitive.MinKey{}},
+			data:          `{"k":{}}`, // TODO: is this normal ?
+			canonical:     `{"k":{}}`,
+			skipUnmarshal: true,
+		},
+		{
+			name:          "max key",
+			value:         bson.M{"k": primitive.MaxKey{}},
+			data:          `{"k":{}}`, // TODO: is this normal ?
+			canonical:     `{"k":{}}`,
+			skipUnmarshal: true,
+		},
+		{
+			name:          "DBRef",
+			value:         primitive.DBPointer{DB: "test", Pointer: objectID},
+			data:          `{"DB":"test","Pointer":ObjectId("5a934e000102030405000000")}`,
+			canonical:     `{"DB":"test","Pointer":{"$oid":"5a934e000102030405000000"}}`,
+			skipUnmarshal: true,
+		},
+		{
+			name:        "data with space",
+			value:       bson.M{"key": bson.A{"one", "two"}},
+			data:        `{ "key" : [ "one", "two" ] }`,
+			canonical:   `{ "key"  :["one","two"]}`,
+			skipMarshal: true,
+		},
+		{
+			name:  "data with line return",
+			value: bson.M{"key": bson.A{1, 2}},
+			data: `{ 
+				"key" : [ 
+					1,
+					2
+				]
+			}`,
+			canonical: `{
+				 "key"  :[1,2
+				 ]}`,
+			skipMarshal: true,
+		},
+		{
+			name:  "data with tab",
+			value: bson.M{"key": bson.A{"one", "two"}},
+			data: `{ "key"	:	["one",	"two"]	}`,
+			canonical: `{	"key":[	"one","two"]}`,
+			skipMarshal: true,
+		},
+		{
+			name:  "bson data with tab",
+			value: bson.M{"key": bson.A{objectID, int32(0)}},
+			data: `{ "key"	:	[ObjectId("5a934e000102030405000000"),	NumberInt(0) ]	}`,
+			canonical: `{	"key":[	{"$oid":"5a934e000102030405000000"},{"$numberInt":0} ] }`,
+			skipMarshal: true,
+		},
 	}
 
 	for _, tt := range marshalTests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			data, err := Marshal(tt.value)
-			if err != nil {
-				t.Errorf("fail to unmarshal %v: %v", tt.value, err)
-			}
-			if want, got := tt.data, string(data); want != got {
-				t.Errorf("expected %s, but got %s", want, got)
-			}
+			if !tt.skipMarshal {
+				data, err := Marshal(tt.value)
+				if err != nil {
+					t.Errorf("fail to marshal %v: %v", tt.value, err)
+				}
+				if want, got := tt.data, string(data); want != got {
+					t.Errorf("marshal failed: expected %s, but got %s", want, got)
+				}
 
-			data, err = MarshalCanonical(tt.value)
-			if err != nil {
-				t.Errorf("fail to unmarshal in canonical mode %v: %v", tt.value, err)
-			}
-			if want, got := tt.canonical, string(data); want != got {
-				t.Errorf("expected %s, but got %s", want, got)
+				data, err = MarshalCanonical(tt.value)
+				if err != nil {
+					t.Errorf("fail to marshal canonical %v: %v", tt.value, err)
+				}
+				if want, got := tt.canonical, string(data); want != got {
+					t.Errorf("marshal canonical failed: expected %s, but got %s", want, got)
+				}
 			}
 
 			if !tt.skipUnmarshal {
 
 				value := reflect.New(reflect.TypeOf(tt.value)).Elem().Interface()
-				err = Unmarshal([]byte(tt.data), &value)
+				err := Unmarshal([]byte(tt.data), &value)
 				if err != nil {
 					t.Errorf("fail to unmarshal %s: %v", tt.data, err)
 				}
 				if want, got := fmt.Sprintf("%v", tt.value), fmt.Sprintf("%v", value); want != got {
-					t.Errorf("expected %v, but got %v", want, got)
+					t.Errorf("unmarshal failed: expected %v, but got %v", want, got)
 				}
 
 				value = reflect.New(reflect.TypeOf(tt.value)).Elem().Interface()
@@ -177,7 +236,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 					t.Errorf("fail to unmarshal canonical %s: %v", tt.data, err)
 				}
 				if want, got := fmt.Sprintf("%v", tt.value), fmt.Sprintf("%v", value); want != got {
-					t.Errorf("expected %v, but got %v", want, got)
+					t.Errorf("unmarshal canonical failed: expected %v, but got %v", want, got)
 				}
 
 			}
