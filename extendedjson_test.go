@@ -1,6 +1,6 @@
 // Copyright (c) 2020 - Adrien Petel
 
-package mongoextjson
+package mongoextjson_test
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/feliixx/mongoextjson"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -246,7 +247,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			if !tt.skipMarshal {
-				data, err := Marshal(tt.value)
+				data, err := mongoextjson.Marshal(tt.value)
 				if err != nil {
 					t.Errorf("fail to marshal %v: %v", tt.value, err)
 				}
@@ -254,7 +255,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 					t.Errorf("marshal failed: expected %s, but got %s", want, got)
 				}
 
-				data, err = MarshalCanonical(tt.value)
+				data, err = mongoextjson.MarshalCanonical(tt.value)
 				if err != nil {
 					t.Errorf("fail to marshal canonical %v: %v", tt.value, err)
 				}
@@ -266,7 +267,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			if !tt.skipUnmarshal {
 
 				value := reflect.New(reflect.TypeOf(tt.value)).Elem().Interface()
-				err := Unmarshal([]byte(tt.data), &value)
+				err := mongoextjson.Unmarshal([]byte(tt.data), &value)
 				if err != nil {
 					t.Errorf("fail to unmarshal %s: %v", tt.data, err)
 				}
@@ -275,7 +276,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 				}
 
 				value = reflect.New(reflect.TypeOf(tt.value)).Elem().Interface()
-				err = Unmarshal([]byte(tt.canonical), &value)
+				err = mongoextjson.Unmarshal([]byte(tt.canonical), &value)
 				if err != nil {
 					t.Errorf("fail to unmarshal canonical %s: %v", tt.data, err)
 				}

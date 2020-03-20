@@ -1,3 +1,7 @@
+[![codecov](https://codecov.io/gh/feliixx/mongoextjson/branch/master/graph/badge.svg)](https://codecov.io/gh/feliixx/mongoextjson)
+[![Go Report Card](https://goreportcard.com/badge/github.com/feliixx/mongoextjson)](https://goreportcard.com/report/github.com/feliixx/mongoextjson)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/feliixx/mongoextjson)
+
 # mongoextjson
 
 A package to encode/decode MongoDB extended JSON. Compatible with the new official go driver (https://github.com/mongodb/mongo-go-driver) 
