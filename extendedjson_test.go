@@ -123,6 +123,25 @@ func TestMarshalUnmarshal(t *testing.T) {
 			canonical: `{}`,
 		},
 		{
+			name:      "boolean true",
+			value:     true,
+			data:      `true`,
+			canonical: `true`,
+		},
+		{
+			name:      "boolean false",
+			value:     false,
+			data:      `false`,
+			canonical: `false`,
+		},
+		{
+			name:          "array with null value",
+			value:         []bson.M{nil},
+			data:          `[null]`,
+			canonical:     `[null]`,
+			skipUnmarshal: true,
+		},
+		{
 			name:      "empty array",
 			value:     []bson.M{},
 			data:      `[]`,
