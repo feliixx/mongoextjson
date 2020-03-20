@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/base64"
-	"fmt"
 	"math"
 	"reflect"
 	"runtime"
@@ -375,28 +374,16 @@ var (
 )
 
 func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	if v.Type() == numberType {
-		numStr := v.String()
-		// In Go1.5 the empty string encodes to "0", while this is not a valid number literal
-		// we keep compatibility so check validity after this.
-		if numStr == "" {
-			numStr = "0" // Number's zero-val
+
+	if opts.quoted {
+		sb, err := Marshal(v.String())
+		if err != nil {
+			e.error(err)
 		}
-		if !isValidNumber(numStr) {
-			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
-		}
-		e.WriteString(numStr)
-		return
+		e.string(string(sb), opts.escapeHTML)
+	} else {
+		e.string(v.String(), opts.escapeHTML)
 	}
-	// if opts.quoted {
-	// 	sb, err := Marshal(v.String())
-	// 	if err != nil {
-	// 		e.error(err)
-	// 	}
-	// 	e.string(string(sb), opts.escapeHTML)
-	// } else {
-	e.string(v.String(), opts.escapeHTML)
-	// }
 }
 
 func interfaceEncoder(e *encodeState, v reflect.Value, opts encOpts) {
