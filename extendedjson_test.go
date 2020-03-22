@@ -143,6 +143,13 @@ func TestMarshalUnmarshal(t *testing.T) {
 			canonical: `{"key":"value"}`,
 		},
 		{
+			name:        "object with unquoted keys",
+			value:       bson.M{"key": "value", "obj": bson.M{"sub": 1, "f": 0.0}},
+			data:        `{key :"value",obj:{sub:1,f:0.0}}`,
+			canonical:   `{key :"value",obj:{sub:1,f:0.0}}`,
+			skipMarshal: true,
+		},
+		{
 			name:      "empty object",
 			value:     bson.M{},
 			data:      `{}`,
