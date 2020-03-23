@@ -2,18 +2,21 @@ name: Run tests
 
 on: [push]
 
+env: 
+  MONGO_VERSION: 4.2.3
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
 
     - name: Set up Go 1.14
       uses: actions/setup-go@v1
       with:
         go-version: 1.14
-      id: go
-
-    - name: Check out code
-      uses: actions/checkout@v2
 
     - name: Vet and lint code
       run: |
@@ -21,8 +24,18 @@ jobs:
         /home/runner/go/bin/golint ./... 
         go vet ./...
 
+    - name: Set up MongoDB
+      run: |
+        wget http://downloads.mongodb.org/linux/mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION.tgz
+        tar xzvf mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION.tgz
+        export PATH=$PWD/mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION/bin:$PATH
+        mkdir $PWD/db
+        mongod --dbpath $PWD/db --logpath /dev/null --fork  
+
     - name: Run test 
-      run: ./test.sh 
+      run: |
+        export PATH=$PWD/mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION/bin:$PATH
+        ./test.sh 
     
     - name: Export coverage result 
       run: bash <(curl -s https://codecov.io/bash)
