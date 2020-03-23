@@ -3,8 +3,14 @@
 package mongoextjson_test
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,10 +19,15 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+var objectID primitive.ObjectID
+
+func init() {
+	objectID, _ = primitive.ObjectIDFromHex("5a934e000102030405000000")
+}
+
 func TestMarshalUnmarshal(t *testing.T) {
 
 	t.Parallel()
-	objectID, _ := primitive.ObjectIDFromHex("5a934e000102030405000000")
 
 	marshalTests := []struct {
 		name          string
@@ -103,7 +114,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		{
 			name:      "int64",
 			value:     int64(10),
-			data:      `10`,
+			data:      `NumberLong(10)`,
 			canonical: `{"$numberLong":10}`,
 		},
 		{
@@ -115,7 +126,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		{
 			name:      "int32",
 			value:     int32(26),
-			data:      `NumberInt(26)`,
+			data:      `26`,
 			canonical: `{"$numberInt":26}`,
 		},
 		{
@@ -293,5 +304,117 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 			}
 		})
+	}
+}
+
+func TestMongoDBShell(t *testing.T) {
+
+	doc := bson.M{
+		"_id":        objectID,
+		"binary":     primitive.Binary{Subtype: 2, Data: []byte("foo")},
+		"date":       time.Date(2016, 5, 15, 1, 2, 3, 4000000, time.UTC),
+		"decimal128": primitive.NewDecimal128(1, 1),
+		"double":     2.2,
+		"false":      false,
+		"int32":      int32(32),
+		"int64":      int64(64),
+		"string":     "string",
+		"timestamp":  primitive.Timestamp{T: 2334, I: 33},
+		"true":       true,
+		"undefined":  primitive.Undefined{},
+	}
+
+	shellTest := struct {
+		input  string
+		output string
+	}{
+		// doc as string to insert
+		input: `{
+			"_id": ObjectId("5a934e000102030405000000"),
+			"binary": BinData(2,"Zm9v"),
+			"date": ISODate("2016-05-15T01:02:03.004Z"),
+			"decimal128": NumberDecimal("1.8446744073709551617E-6157"),
+			"double": 2.2,
+			"false": false,
+			"int32": NumberInt(32),
+			"int64": NumberLong(64),
+			"string": "string",
+			"timestamp": Timestamp(2334,33),
+			"true": true,
+			"undefined": undefined
+		}`,
+		// expected result from MongoDB shell
+		output: `{
+	"_id" : ObjectId("5a934e000102030405000000"),
+	"binary" : BinData(2,"Zm9v"),
+	"date" : ISODate("2016-05-15T01:02:03.004Z"),
+	"decimal128" : NumberDecimal("1.8446744073709551617E-6157"),
+	"double" : 2.2,
+	"false" : false,
+	"int32" : 32,
+	"int64" : NumberLong(64),
+	"string" : "string",
+	"timestamp" : Timestamp(2334, 33),
+	"true" : true,
+	"undefined" : undefined
+}`,
+	}
+
+	// first, insert a document into mongodb, and check the corresponding shell output
+	buffer := bytes.NewBuffer(nil)
+	fmt.Fprintf(buffer, `
+
+	db.test.remove({})
+	db.test.insert(%s)
+	
+	var result = tojson(db.test.findOne())
+
+	if (result != %s) {
+		print("shell test failed, expected: \n" + %s +  "\nbut got: \n" + result)
+	}`,
+		shellTest.input,
+		strconv.Quote(shellTest.output),
+		strconv.Quote(shellTest.output))
+
+	runJsTest(t, buffer, "mongoshell.js")
+
+	// then, marshal an equivalent bson.M document, and make sure
+	// that the output is the same than the mongodb shell output
+	b, err := mongoextjson.Marshal(doc)
+	if err != nil {
+		t.Errorf("fail to unmarshal %s: %v", doc, err)
+	}
+
+	want := strings.ReplaceAll(shellTest.output, "\t", "")
+	want = strings.ReplaceAll(want, "\n", "")
+	want = strings.ReplaceAll(want, " ", "")
+
+	if got := string(b); want != got {
+		t.Errorf("unmarshal failed: expected \n%s, but got \n%s", want, got)
+	}
+}
+
+func runJsTest(t *testing.T, buffer *bytes.Buffer, filename string) {
+
+	testFile, err := os.Create(filename)
+	if err != nil {
+		t.Error(err)
+	}
+	io.Copy(testFile, buffer)
+	testFile.Close()
+	// run the tests using mongodb javascript engine
+	cmd := exec.Command("mongo", "--quiet", filename)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	err = cmd.Run()
+	if err != nil {
+		t.Error(err)
+	}
+	result := out.String()
+	if result != "" {
+		t.Error(result)
+	} else {
+		os.Remove(filename)
 	}
 }
