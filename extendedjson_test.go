@@ -61,12 +61,27 @@ func TestMarshalUnmarshal(t *testing.T) {
 			value:     time.Date(2016, 5, 15, 1, 2, 3, 4000000, time.UTC),
 			data:      `ISODate("2016-05-15T01:02:03.004Z")`,
 			canonical: `{"$date":"2016-05-15T01:02:03.004Z"}`,
-		}, {
+		},
+		{
 			name:          "time.Date with zone",
 			value:         time.Date(2016, 5, 15, 1, 2, 3, 4000000, time.FixedZone("CET", 60*60)),
 			data:          `ISODate("2016-05-15T01:02:03.004+01:00")`,
 			canonical:     `{"$date":"2016-05-15T01:02:03.004+01:00"}`,
 			skipUnmarshal: true, // TODO: why this doesn't work ?
+		},
+		{
+			name:        "new Date() from string",
+			value:       time.Date(2000, 8, 27, 23, 12, 23, 4000000, time.UTC),
+			data:        `new Date("2000-08-27T23:12:23.004Z")`,
+			canonical:   `{"$date":"2000-08-27T23:12:23.004Z"}`,
+			skipMarshal: true,
+		},
+		{
+			name:        "new Date() from millisecond",
+			value:       time.Date(1970, 1, 1, 0, 18, 36, 374000000, time.UTC),
+			data:        `new Date(1116374)`,
+			canonical:   `{"$date":"1970-01-01T00:18:36.374Z"}`,
+			skipMarshal: true,
 		},
 		{
 			name:      "Binary",
@@ -310,18 +325,20 @@ func TestMarshalUnmarshal(t *testing.T) {
 func TestMongoDBShell(t *testing.T) {
 
 	doc := bson.M{
-		"_id":        objectID,
-		"binary":     primitive.Binary{Subtype: 2, Data: []byte("foo")},
-		"date":       time.Date(2016, 5, 15, 1, 2, 3, 4000000, time.UTC),
-		"decimal128": primitive.NewDecimal128(1, 1),
-		"double":     2.2,
-		"false":      false,
-		"int32":      int32(32),
-		"int64":      int64(64),
-		"string":     "string",
-		"timestamp":  primitive.Timestamp{T: 2334, I: 33},
-		"true":       true,
-		"undefined":  primitive.Undefined{},
+		"_id":             objectID,
+		"binary":          primitive.Binary{Subtype: 2, Data: []byte("foo")},
+		"date":            time.Date(2016, 5, 15, 1, 2, 3, 4000000, time.UTC),
+		"date_new_millis": time.Date(1970, 1, 21, 2, 24, 23, 734000000, time.UTC),
+		"date_new_string": time.Date(1993, 6, 26, 0, 0, 0, 0, time.UTC),
+		"decimal128":      primitive.NewDecimal128(1, 1),
+		"double":          2.2,
+		"false":           false,
+		"int32":           int32(32),
+		"int64":           int64(64),
+		"string":          "string",
+		"timestamp":       primitive.Timestamp{T: 2334, I: 33},
+		"true":            true,
+		"undefined":       primitive.Undefined{},
 	}
 
 	shellTest := struct {
@@ -333,6 +350,8 @@ func TestMongoDBShell(t *testing.T) {
 			"_id": ObjectId("5a934e000102030405000000"),
 			"binary": BinData(2,"Zm9v"),
 			"date": ISODate("2016-05-15T01:02:03.004Z"),
+			"date_new_millis": new Date(1736663734),
+			"date_new_string": new Date("1993-06-26T00:00:00Z"),
 			"decimal128": NumberDecimal("1.8446744073709551617E-6157"),
 			"double": 2.2,
 			"false": false,
@@ -348,6 +367,8 @@ func TestMongoDBShell(t *testing.T) {
 	"_id" : ObjectId("5a934e000102030405000000"),
 	"binary" : BinData(2,"Zm9v"),
 	"date" : ISODate("2016-05-15T01:02:03.004Z"),
+	"date_new_millis" : ISODate("1970-01-21T02:24:23.734Z"),
+	"date_new_string" : ISODate("1993-06-26T00:00:00Z"),
 	"decimal128" : NumberDecimal("1.8446744073709551617E-6157"),
 	"double" : 2.2,
 	"false" : false,
