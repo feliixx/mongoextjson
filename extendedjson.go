@@ -402,7 +402,7 @@ func jencNumberLong(v interface{}) ([]byte, error) {
 
 func jencExtendedNumberLong(v interface{}) ([]byte, error) {
 	n := v.(int64)
-	return fbytes("%d", n), nil
+	return fbytes("NumberLong(%d)", n), nil
 }
 
 func jdecNumberInt(data []byte) (interface{}, error) {
@@ -444,7 +444,7 @@ func jencNumberInt(v interface{}) ([]byte, error) {
 
 func jencExtendedNumberInt(v interface{}) ([]byte, error) {
 	n := v.(int32)
-	return fbytes("NumberInt(%d)", n), nil
+	return fbytes("%d", n), nil
 }
 
 func jdecNumberDecimal(data []byte) (interface{}, error) {
