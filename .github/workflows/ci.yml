@@ -24,17 +24,16 @@ jobs:
         /home/runner/go/bin/golint ./... 
         go vet ./...
 
-    - name: Set up MongoDB
+    - name: Download mongodb
       run: |
         wget http://downloads.mongodb.org/linux/mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION.tgz
         tar xzvf mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION.tgz
-        export PATH=$PWD/mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION/bin:$PATH
         mkdir $PWD/db
-        mongod --dbpath $PWD/db --logpath /dev/null --fork  
 
-    - name: Run test 
+    - name: Start mongod server and run test 
       run: |
         export PATH=$PWD/mongodb-linux-x86_64-ubuntu1804-$MONGO_VERSION/bin:$PATH
+        mongod --dbpath $PWD/db --logpath /dev/null --fork  
         ./test.sh 
     
     - name: Export coverage result 
