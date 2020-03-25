@@ -4,7 +4,7 @@
 
 # mongoextjson
 
-A package to encode/decode MongoDB extended JSON. Compatible with the new official go driver (https://github.com/mongodb/mongo-go-driver) 
+A package to encode/decode MongoDB extended JSON. Compatible with the official go driver (https://github.com/mongodb/mongo-go-driver) 
 
 
 # credits

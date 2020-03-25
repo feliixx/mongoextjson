@@ -4,6 +4,15 @@
 // license that can be found in the LICENSE file.
 
 // Package mongoextjson allows to encode/decode MongoDB extended JSON
+// as defined here:
+//
+//     https://docs.mongodb.com/manual/reference/mongodb-extended-json-v1/
+//
+// This package is compatible with the official go driver (https://github.com/mongodb/mongo-go-driver)
+//
+// Limitations:
+//
+// shell mode regex can't be parsed, so instead of `/pattern/opts`, use `{"$regex": "pattern","$options":"opts"}`
 package mongoextjson
 
 import (
@@ -17,30 +26,16 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Unmarshal unmarshals a JSON value that may hold non-standard
-// syntax as defined in BSON's extended JSON specification.
+// Unmarshal unmarshals a slice of byte that may hold non-standard
+// syntax as defined in MonogDB extended JSON v1 specification.
 func Unmarshal(data []byte, value interface{}) error {
 	d := NewDecoder(bytes.NewBuffer(data))
 	d.Extend(&jsonExt)
 	return d.Decode(value)
 }
 
-// MarshalCanonical return the BSON extended JSON encoding of value.
-// The output is a valid JSON and will look like
-//
-// { "_id": {"$oid": "5a934e000102030405000000"}}
-func MarshalCanonical(value interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	e := NewEncoder(&buf)
-	e.Extend(&jsonExt)
-	err := e.Encode(value)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// Marshal return the BSON extended JSON encoding of value.
+// Marshal return the MongoDB extended JSON v1 encoding of value
+// in 'shell mode'.
 // The output is not a valid JSON and will look like
 //
 // { "_id": ObjectId("5a934e000102030405000000")}
@@ -48,6 +43,22 @@ func Marshal(value interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	e := NewEncoder(&buf)
 	e.Extend(&jsonExtendedExt)
+	err := e.Encode(value)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// MarshalCanonical return the MongoDB extended JSON v1 of value
+// in 'strict mode'.
+// The output is a valid JSON and will look like
+//
+// { "_id": {"$oid": "5a934e000102030405000000"}}
+func MarshalCanonical(value interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	e := NewEncoder(&buf)
+	e.Extend(&jsonExt)
 	err := e.Encode(value)
 	if err != nil {
 		return nil, err
