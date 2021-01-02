@@ -19,7 +19,6 @@ type Decoder struct {
 	err   error
 
 	tokenState int
-	tokenStack []int
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -228,8 +227,6 @@ const (
 	tokenArrayStart
 	tokenArrayValue
 	tokenArrayComma
-	tokenObjectStart
-	tokenObjectKey
 	tokenObjectColon
 	tokenObjectValue
 	tokenObjectComma
