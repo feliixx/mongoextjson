@@ -1,9 +1,9 @@
 name: Run tests
 
-on: [push]
+on: push
 
 env: 
-  MONGO_VERSION: 4.2.3
+  MONGO_VERSION: 4.4.2
 
 jobs:
   build:
@@ -13,10 +13,10 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v2
 
-    - name: Set up Go 1.14
+    - name: Set up Go
       uses: actions/setup-go@v1
       with:
-        go-version: 1.14
+        go-version: 1.15
 
     - name: Vet and lint code
       run: |
