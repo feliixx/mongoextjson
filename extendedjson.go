@@ -233,6 +233,11 @@ func jencExtendedBinaryType(v interface{}) ([]byte, error) {
 const jdateFormat = "2006-01-02T15:04:05.999Z07:00"
 
 func jdecDate(data []byte) (interface{}, error) {
+
+	if string(data) == "new Date()" {
+		return time.Now().UTC(), nil
+	}
+
 	var v struct {
 		S    string `json:"$date"`
 		Func struct {

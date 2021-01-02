@@ -84,6 +84,13 @@ func TestMarshalUnmarshal(t *testing.T) {
 			skipMarshal: true,
 		},
 		{
+			name:        "new Date() from millisecond",
+			value:       time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+			data:        `new Date(0)`,
+			canonical:   `{"$date":"1970-01-01T00:00:00.000Z"}`,
+			skipMarshal: true,
+		},
+		{
 			name:      "Binary",
 			value:     primitive.Binary{Subtype: 2, Data: []byte("foo")},
 			data:      `BinData(2,"Zm9v")`,
@@ -214,7 +221,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		},
 		{
 			name:      "array of objects",
-			value:     []bson.M{bson.M{"k": "v1"}, bson.M{"k": "v2"}},
+			value:     []bson.M{{"k": "v1"}, {"k": "v2"}},
 			data:      `[{"k":"v1"},{"k":"v2"}]`,
 			canonical: `[{"k":"v1"},{"k":"v2"}]`,
 		},
@@ -320,6 +327,35 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEmptyNewDate(t *testing.T) {
+
+	now := time.Now().UTC()
+	data := "new Date()"
+	value := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
+
+	err := mongoextjson.Unmarshal([]byte(data), &value)
+	if err != nil {
+		t.Errorf("fail to unmarshal %s: %v", data, err)
+	}
+
+	if now.Year() != value.Year() {
+		t.Errorf("different year: %d vs %d", now.Year(), value.Year())
+	}
+	if now.Month() != value.Month() {
+		t.Errorf("different month: %d vs %d", now.Month(), value.Month())
+	}
+	if now.Day() != value.Day() {
+		t.Errorf("different day: %d vs %d", now.Day(), value.Day())
+	}
+	if now.Hour() != value.Hour() {
+		t.Errorf("different hour: %d vs %d", now.Hour(), value.Hour())
+	}
+	if now.Minute() != value.Minute() {
+		t.Errorf("different minute: %d vs %d", now.Minute(), value.Minute())
+	}
+
 }
 
 func TestMongoDBShell(t *testing.T) {
