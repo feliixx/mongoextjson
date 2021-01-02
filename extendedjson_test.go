@@ -457,7 +457,10 @@ func runJsTest(t *testing.T, buffer *bytes.Buffer, filename string) {
 	if err != nil {
 		t.Error(err)
 	}
-	io.Copy(testFile, buffer)
+	_, err = io.Copy(testFile, buffer)
+	if err != nil {
+		t.Error(err)
+	}
 	testFile.Close()
 	// run the tests using mongodb javascript engine
 	cmd := exec.Command("mongo", "--quiet", filename)
