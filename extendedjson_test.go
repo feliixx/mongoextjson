@@ -360,6 +360,11 @@ func TestEmptyNewDate(t *testing.T) {
 
 func TestMongoDBShell(t *testing.T) {
 
+	_, err := exec.LookPath("mongo")
+	if err != nil {
+		t.Skip("mongo binary not present in PATH")
+	}
+
 	doc := bson.M{
 		"_id":             objectID,
 		"binary":          primitive.Binary{Subtype: 2, Data: []byte("foo")},
