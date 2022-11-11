@@ -6,7 +6,7 @@
 // Package mongoextjson allows to encode/decode MongoDB extended JSON
 // as defined here:
 //
-//     https://docs.mongodb.com/manual/reference/mongodb-extended-json-v1/
+//	https://docs.mongodb.com/manual/reference/mongodb-extended-json-v1/
 //
 // This package is compatible with the official go driver (https://github.com/mongodb/mongo-go-driver)
 //
@@ -73,6 +73,9 @@ var jsonExtendedExt Extension
 // TODO
 // - Shell regular expressions ("/regexp/opts")
 
+// binary v2
+//
+
 func init() {
 	jsonExt.DecodeUnquotedKeys(true)
 	jsonExt.DecodeTrailingCommas(true)
@@ -102,9 +105,12 @@ func init() {
 
 	funcExt.DecodeConst("undefined", primitive.Undefined{})
 
+	// v1
 	jsonExt.DecodeKeyed("$regex", jdecRegEx)
-	jsonExt.EncodeType(primitive.Regex{}, jencRegEx)
-	jsonExtendedExt.EncodeType(primitive.Regex{}, jencRegEx)
+	// v2
+	jsonExt.EncodeType(primitive.Regex{}, jencRegularExpression)
+	jsonExtendedExt.EncodeType(primitive.Regex{}, jencRegularExpression)
+	jsonExt.DecodeKeyed("$regularExpression", jdecRegularExpression)
 
 	funcExt.DecodeFunc("ObjectId", "$oidFunc", "Id")
 	jsonExt.DecodeKeyed("$oid", jdecObjectID)
@@ -140,6 +146,14 @@ func init() {
 	funcExt.DecodeConst("MaxKey", primitive.MaxKey{})
 	jsonExt.DecodeKeyed("$minKey", jdecMinKey)
 	jsonExt.DecodeKeyed("$maxKey", jdecMaxKey)
+	jsonExt.EncodeType(primitive.MinKey{}, jencMinKey)
+	jsonExt.EncodeType(primitive.MaxKey{}, jencMaxKey)
+	jsonExtendedExt.EncodeType(primitive.MinKey{}, jencMinKey)
+	jsonExtendedExt.EncodeType(primitive.MaxKey{}, jencMaxKey)
+
+	jsonExt.DecodeConst("null", primitive.Null{})
+	jsonExt.EncodeType(primitive.Null{}, jencNull)
+	jsonExtendedExt.EncodeType(primitive.Null{}, jencNull)
 
 	jsonExt.DecodeKeyed("$undefined", jdecUndefined)
 	jsonExt.EncodeType(primitive.Undefined{}, jencUndefined)
@@ -172,23 +186,29 @@ func jdecBinary(data []byte) (interface{}, error) {
 			Type   int64  `json:"$type"`
 		} `json:"$binaryFunc"`
 	}
-	err := jdec(data, &v)
-	if err != nil {
-		return nil, err
-	}
 
 	var binData []byte
 	var binKind int64
-	if v.Type == "" && v.Binary == nil {
-		binData = v.Func.Binary
-		binKind = v.Func.Type
-	} else if v.Type == "" {
-		return v.Binary, nil
+
+    // v1 decoding
+	err := jdec(data, &v)
+	if err == nil {
+		if v.Type == "" && v.Binary == nil {
+			binData = v.Func.Binary
+			binKind = v.Func.Type
+		} else if v.Type == "" {
+			return v.Binary, nil
+		} else {
+			binData = v.Binary
+			binKind, err = strconv.ParseInt(v.Type, 0, 64)
+			if err != nil {
+				binKind = -1
+			}
+		}
 	} else {
-		binData = v.Binary
-		binKind, err = strconv.ParseInt(v.Type, 0, 64)
+		binData, binKind, err = jdecBinaryV2(data)
 		if err != nil {
-			binKind = -1
+			return nil, err
 		}
 	}
 
@@ -202,18 +222,35 @@ func jdecBinary(data []byte) (interface{}, error) {
 	return primitive.Binary{Subtype: byte(binKind), Data: binData}, nil
 }
 
+func jdecBinaryV2(data []byte) ([]byte, int64, error) {
+	var v struct {
+		Func struct {
+		Binary []byte `json:"base64"`
+		Type   string `json:"subType"`
+		} `json:"$binary"`
+	}
+
+	err := jdec(data, &v)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	subType, err := strconv.ParseInt(v.Func.Type, 0, 64)
+	return v.Func.Binary, subType, err
+}
+
 func jencBinarySlice(v interface{}) ([]byte, error) {
 	in := v.([]byte)
 	out := make([]byte, base64.StdEncoding.EncodedLen(len(in)))
 	base64.StdEncoding.Encode(out, in)
-	return fbytes(`{"$binary":"%s","$type":"0x0"}`, out), nil
+	return fbytes(`{"$binary":{"base64":"%s","subType":"0x0"}}`, out), nil
 }
 
 func jencBinaryType(v interface{}) ([]byte, error) {
 	in := v.(primitive.Binary)
 	out := make([]byte, base64.StdEncoding.EncodedLen(len(in.Data)))
 	base64.StdEncoding.Encode(out, in.Data)
-	return fbytes(`{"$binary":"%s","$type":"0x%x"}`, out, in.Subtype), nil
+	return fbytes(`{"$binary":{"base64":"%s","subType":"%x"}}`, out, in.Subtype), nil
 }
 
 func jencExtendedBinarySlice(v interface{}) ([]byte, error) {
@@ -290,8 +327,8 @@ func jencExtendedDate(v interface{}) ([]byte, error) {
 }
 
 func jencDateTime(v interface{}) ([]byte, error) {
-	t := v.(primitive.DateTime).Time().UTC()
-	return fbytes(`{"$date":%q}`, t.Format(jdateFormat)), nil
+	t := v.(primitive.DateTime).Time().UTC().UnixMilli()
+	return fbytes(`{"$date":{"$numberLong":"%d"}}`, t), nil
 }
 
 func jencExtendedDateTime(v interface{}) ([]byte, error) {
@@ -335,9 +372,23 @@ func jdecRegEx(data []byte) (interface{}, error) {
 	return primitive.Regex{Pattern: v.Regex, Options: v.Options}, nil
 }
 
-func jencRegEx(v interface{}) ([]byte, error) {
+func jencRegularExpression(v interface{}) ([]byte, error) {
 	re := v.(primitive.Regex)
-	return fbytes(`{"$regex":"%v","$options":"%v"}`, re.Pattern, re.Options), nil
+	return fbytes(`{"$regularExpression":{"pattern":"%v","options":"%v"}}`, re.Pattern, re.Options), nil
+}
+
+func jdecRegularExpression(data []byte) (interface{}, error) {
+	var v struct {
+		Func struct {
+		  Pattern string `json:"pattern"`
+		  Options string `json:"options"`
+		} `json:"$regularExpression"`
+	}
+	err := jdec(data, &v)
+	if err != nil {
+		return nil, err
+	}
+	return primitive.Regex{Pattern: v.Func.Pattern, Options: v.Func.Options}, nil
 }
 
 func jdecObjectID(data []byte) (interface{}, error) {
@@ -410,9 +461,6 @@ func jdecNumberLong(data []byte) (interface{}, error) {
 func jencNumberLong(v interface{}) ([]byte, error) {
 	n := v.(int64)
 	f := `{"$numberLong":"%d"}`
-	if n <= 1<<53 {
-		f = `{"$numberLong":%d}`
-	}
 	return fbytes(f, n), nil
 }
 
@@ -452,9 +500,6 @@ func jdecNumberInt(data []byte) (interface{}, error) {
 func jencNumberInt(v interface{}) ([]byte, error) {
 	n := v.(int32)
 	f := `{"$numberInt":"%d"}`
-	if n <= 1<<21 {
-		f = `{"$numberInt":%d}`
-	}
 	return fbytes(f, n), nil
 }
 
@@ -537,6 +582,18 @@ func jdecMaxKey(data []byte) (interface{}, error) {
 		return nil, fmt.Errorf("invalid $maxKey object: %s", data)
 	}
 	return primitive.MaxKey{}, nil
+}
+
+func jencMinKey(v interface{}) ([]byte, error) {
+	return []byte(`{"$minKey":1}`), nil
+}
+
+func jencMaxKey(v interface{}) ([]byte, error) {
+	return []byte(`{"$maxKey":1}`), nil
+}
+
+func jencNull(v interface{}) ([]byte, error) {
+	return []byte("null"), nil
 }
 
 func jdecUndefined(data []byte) (interface{}, error) {
