@@ -47,8 +47,8 @@ func TestMarshalUnmarshal(t *testing.T) {
 			name:          "DateTime",
 			value:         primitive.DateTime(778846633334),
 			data:          `ISODate("1994-09-06T10:17:13.334Z")`,
-			canonical:     `{"$date":"1994-09-06T10:17:13.334Z"}`,
-			skipUnmarshal: true, // what is this new primitive.DateTime time ?
+			canonical:     `{"$date":{"$numberLong":"778846633334"}}`,
+			skipUnmarshal: true,
 		},
 		{
 			name:      "Timestamp",
@@ -94,7 +94,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			name:      "Binary",
 			value:     primitive.Binary{Subtype: 2, Data: []byte("foo")},
 			data:      `BinData(2,"Zm9v")`,
-			canonical: `{"$binary":"Zm9v","$type":"0x2"}`,
+			canonical: `{"$binary":{"base64":"Zm9v","subType":"2"}}`,
 		},
 		{
 			name:      "Undefined",
@@ -137,7 +137,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			name:      "int64",
 			value:     int64(10),
 			data:      `NumberLong(10)`,
-			canonical: `{"$numberLong":10}`,
+			canonical: `{"$numberLong":"10"}`,
 		},
 		{
 			name:      "int",
@@ -149,7 +149,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			name:      "int32",
 			value:     int32(26),
 			data:      `26`,
-			canonical: `{"$numberInt":26}`,
+			canonical: `{"$numberInt":"26"}`,
 		},
 		{
 			name:      "float32",
@@ -166,8 +166,8 @@ func TestMarshalUnmarshal(t *testing.T) {
 		{
 			name:      "regex",
 			value:     primitive.Regex{Pattern: "/test/", Options: "i"},
-			data:      `{"$regex":"/test/","$options":"i"}`,
-			canonical: `{"$regex":"/test/","$options":"i"}`,
+			data:      `{"$regularExpression":{"pattern":"/test/","options":"i"}}`,
+			canonical: `{"$regularExpression":{"pattern":"/test/","options":"i"}}`,
 		},
 		{
 			name:      "object",
@@ -228,15 +228,15 @@ func TestMarshalUnmarshal(t *testing.T) {
 		{
 			name:          "min key",
 			value:         bson.M{"k": primitive.MinKey{}},
-			data:          `{"k":{}}`, // TODO: is this normal ?
-			canonical:     `{"k":{}}`,
+			data:          `{"k":{"$minKey":1}}`,
+			canonical:     `{"k":{"$minKey":1}}`,
 			skipUnmarshal: true,
 		},
 		{
 			name:          "max key",
 			value:         bson.M{"k": primitive.MaxKey{}},
-			data:          `{"k":{}}`, // TODO: is this normal ?
-			canonical:     `{"k":{}}`,
+			data:          `{"k":{"$maxKey":1}}`,
+			canonical:     `{"k":{"$maxKey":1}}`,
 			skipUnmarshal: true,
 		},
 		{
@@ -268,17 +268,17 @@ func TestMarshalUnmarshal(t *testing.T) {
 			skipMarshal: true,
 		},
 		{
-			name:  "data with tab",
-			value: bson.M{"key": bson.A{"one", "two"}},
-			data: `{ "key"	:	["one",	"two"]	}`,
-			canonical: `{	"key":[	"one","two"]}`,
+			name:        "data with tab",
+			value:       bson.M{"key": bson.A{"one", "two"}},
+			data:        `{ "key"	:	["one",	"two"]	}`,
+			canonical:   `{	"key":[	"one","two"]}`,
 			skipMarshal: true,
 		},
 		{
-			name:  "bson data with tab",
-			value: bson.M{"key": bson.A{objectID, int32(0)}},
-			data: `{ "key"	:	[ObjectId("5a934e000102030405000000"),	NumberInt(0) ]	}`,
-			canonical: `{	"key":[	{"$oid":"5a934e000102030405000000"},{"$numberInt":0} ] }`,
+			name:        "bson data with tab",
+			value:       bson.M{"key": bson.A{objectID, int32(0)}},
+			data:        `{ "key"	:	[ObjectId("5a934e000102030405000000"),	NumberInt(0) ]	}`,
+			canonical:   `{	"key":[	{"$oid":"5a934e000102030405000000"},{"$numberInt":0} ] }`,
 			skipMarshal: true,
 		},
 	}
@@ -355,7 +355,51 @@ func TestEmptyNewDate(t *testing.T) {
 	if now.Minute() != value.Minute() {
 		t.Errorf("different minute: %d vs %d", now.Minute(), value.Minute())
 	}
+}
 
+func TestValidExtendedJSONv2(t *testing.T) {
+
+	doc := bson.M{
+		"_id":        objectID,
+		"binary":     primitive.Binary{Subtype: 2, Data: []byte("foo")},
+		"date":       primitive.DateTime(123615253712),
+		"decimal128": primitive.NewDecimal128(1, 1),
+		"double":     2.2,
+		"int32":      int32(32),
+		"int64":      int64(64),
+		"false":      false,
+		"true":       true,
+		"min":        primitive.MinKey{},
+		"max":        primitive.MaxKey{},
+		"regex":      primitive.Regex{Pattern: "/[a-z]+/", Options: "gi"},
+		"string":     "string",
+		"timestamp":  primitive.Timestamp{T: 2334, I: 33},
+		"undefined":  primitive.Undefined{},
+		"nil":        nil,
+	}
+
+	docStr, err := mongoextjson.MarshalCanonical(doc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var result bson.M
+	err = bson.UnmarshalExtJSON(docStr, true, &result)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for key, want := range doc {
+
+		got, ok := result[key]
+		if !ok {
+			t.Errorf("Missing key %s in result", key)
+		}
+
+		if !reflect.DeepEqual(want, got) {
+			t.Errorf("For key %s, expected %v but got %v", key, want, got)
+		}
+	}
 }
 
 func TestMongoDBShell(t *testing.T) {
